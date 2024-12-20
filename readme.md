@@ -27,7 +27,7 @@
 
 ## 使用 Docker Compose 部署
 
-    git clone --depth 1 https://github.com/UGYnpU2nuB8QCFqDrsWZgmxMBp43WQ/v2board
+    git clone --depth 1 https://github.com/Smile-QWQ/v2board
     cd v2board
     docker compose pull
     docker compose run -it --rm v2board sh init.sh
