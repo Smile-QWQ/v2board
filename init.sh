@@ -12,5 +12,5 @@ fi
 php artisan v2board:install
 
 if [ -f "/etc/init.d/bt" ] || [ "$docker" ]; then
-  chown -R www:www $(pwd);
+  chown -R www $(pwd);
 fi
