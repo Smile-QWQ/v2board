@@ -1,4 +1,4 @@
-FROM library/php:fpm-alpine
+FROM phpswoole/swoole:php8.1-alpine
 
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
