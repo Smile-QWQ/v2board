@@ -33,11 +33,13 @@
     docker compose run -it --rm v2board sh init.sh
     docker compose up -d
 
-切记及时记录 密码 和 后台路径
+切记及时记录 密码 和 后台路径，网站默认端口 7002
 
-网站默认端口 7002
+已添加监控文件修改自动重启 webman，无需手动重启
 
-mysql/mariadb需自行安装
+v2board默认将队列驱动和缓存驱动都修改为了redis，请务必安装redis
+
+mysql/mariadb/redis需自行安装，redis配置信息需自行填写到.env中
 
 ## 使用 Docker Compose 更新 v2board
 
