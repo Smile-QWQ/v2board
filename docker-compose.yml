@@ -1,0 +1,14 @@
+services:
+  v2board:
+    # build: 
+    #   context: .
+    image: ghcr.io/smile-qwq/v2board:master
+    network_mode: host
+    volumes:
+      - ./:/www/
+      # - ./.env:/www/.env
+    environment:
+      - docker=true # 用于给安装脚本判断是否为docker环境
+    restart: always
+    ## ports:
+    ##   - 7002:7002
