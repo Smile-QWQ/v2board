@@ -10,12 +10,17 @@ WORKDIR /www
 COPY .docker /
 COPY . /www
 
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
-    && HASH=$(curl -sS https://composer.github.io/installer.sig) \
-    && php -r "if (hash_file('sha384', 'composer-setup.php') === getenv('HASH')) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); exit(1); } echo PHP_EOL;" \
-    && php composer-setup.php \
-    && php -r "unlink('composer-setup.php');" \
-    && mv composer.phar /usr/local/bin/composer
+RUN set -eux; \
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"; \
+    EXPECTED_CHECKSUM="$(curl -s https://composer.github.io/installer.sig)"; \
+    ACTUAL_CHECKSUM="$(php -r 'echo hash_file(\"sha384\", \"composer-setup.php\");')"; \
+    if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then \
+        echo "ERROR: Invalid installer checksum"; \
+        rm composer-setup.php; \
+        exit 1; \
+    fi; \
+    php composer-setup.php --install-dir=/usr/local/bin --filename=composer; \
+    rm composer-setup.php
 
 RUN composer install --optimize-autoloader --no-cache --no-dev \
     && php artisan storage:link \
