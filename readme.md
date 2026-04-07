@@ -1,75 +1,77 @@
 <img src="https://avatars.githubusercontent.com/u/56885001?s=200&v=4" alt="logo" width="130" height="130" align="right"/>
 
-[![](https://img.shields.io/badge/TgChat-@UnOfficialV2board讨论-blue.svg)](https://t.me/unofficialV2board)
+# V2Board
 
-## 本分支支持的后端
- - [修改版V2bX](https://github.com/wyx2685/V2bX)
- - [v2node](https://github.com/wyx2685/v2node)
+这是一个带有 `v2node` / `V2bX` 节点后端支持的 V2Board 分支。
 
-## 原版迁移步骤
+## 支持的后端
 
-按以下步骤进行面板代码文件迁移：
+- [修改版 V2bX](https://github.com/wyx2685/V2bX)
+- [v2node](https://github.com/wyx2685/v2node)
 
-    git remote set-url origin https://github.com/wyx2685/v2board  
-    git checkout master  
-    ./update.sh  
+## 文档
 
+- 官方文档: https://v2board.com
+- 官方更新说明: https://v2board.com/use/update.html
+- 官方 aaPanel 部署说明: https://v2board.com/deploy/aapanel.html
+- Docker 部署说明: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
-按以下步骤配置缓存驱动为redis，然后刷新设置缓存，重启队列:
+## Docker 特性
 
-    sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=redis/' .env
-    php artisan config:clear
-    php artisan config:cache
-    php artisan horizon:terminate
+当前仓库内置的是一套面向生产环境的 Docker 部署方案：
 
-最后进入后台重新保存主题： 主题配置-选择default主题-主题设置-确定保存
+- 外置 Nginx
+- 外置 MySQL / Redis
+- compose 注入环境变量
+- `app` / `queue` / `scheduler` 三服务拆分
+- 日志直接输出到 stdout/stderr
 
-## 使用 Docker Compose 部署
+## 快速开始
 
-    git clone --depth 1 https://github.com/Smile-QWQ/v2board
-    cd v2board
-    docker compose pull
-    docker compose run -it --rm v2board sh init.sh
-    docker compose up -d
+### 首次部署
 
-切记及时记录 密码 和 后台路径，网站默认端口 7002
+```bash
+docker compose pull
+# 或 docker compose build
 
-已添加监控文件修改自动重启 webman，无需手动重启
+docker compose up -d app queue scheduler
+docker compose exec app php artisan v2board:install
+```
 
-v2board默认将队列驱动和缓存驱动都修改为了redis，请务必安装redis
+### 更新
 
-mysql/mariadb/redis需自行安装，redis配置信息需自行填写到.env中
+```bash
+docker compose pull
+# 或 docker compose build
 
-## 使用 Docker Compose 更新 v2board
+docker compose up -d app
+docker compose exec app php artisan v2board:update
+docker compose up -d queue scheduler
+```
 
-    cd v2board
-    docker compose run -it --rm v2board sh update.sh
-    docker compose pull
-    docker compose down
-    docker compose run -it --rm v2board php artisan v2board:update
-    docker compose up -d
+> 更新前请先备份数据库。
 
-# **V2Board**
+### 查看日志
 
-- PHP7.3+
-- Composer
-- MySQL5.5+
-- Redis
-- Laravel
+```bash
+docker compose logs -f app
+docker compose logs -f queue
+docker compose logs -f scheduler
+```
 
-## Demo
-[Demo_user](https://v2bdemo.v-50.me/)
-[Demo_admin](https://v2bdemo.v-50.me/admindashboard)
-邮箱和密码可随意输入
+## GitHub Actions
 
-## Document
-[Click](https://v2board.com)
+仓库内置 GitHub Actions Docker 发布流程：
+
+- PR / Push 会执行 Docker 构建校验
+- `master` 分支 push 会发布镜像到 GHCR
+- 默认使用仓库根目录 `Dockerfile` 构建镜像
+- 详细发布逻辑见 `.github/workflows/docker-publish.yml`
 
 ## Sponsors
+
 Thanks to the open source project license provided by [Jetbrains](https://www.jetbrains.com/)
 
 ## Community
-🔔Telegram Group: [@unofficialV2board](https://t.me/unofficialV2board)  
 
-## How to Feedback
-Follow the template in the issue to submit your question correctly, and we will have someone follow up with you.
+Telegram Group: [@unofficialV2board](https://t.me/unofficialV2board)

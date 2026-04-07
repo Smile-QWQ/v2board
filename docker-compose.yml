@@ -1,14 +1,48 @@
+x-v2board-env: &v2board-env
+  docker: "true"
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_URL: "https://example.com"
+  APP_KEY: "base64:please-generate-and-replace-this-key"
+  LOG_CHANNEL: "stderr"
+  APP_HTTP_HOST: "0.0.0.0"
+  APP_HTTP_PORT: "7002"
+  MAX_REQUEST: "6600"
+  APP_FILE_WATCH: "false"
+  SCHEDULE_INTERVAL: "60"
+  DB_CONNECTION: "mysql"
+  DB_HOST: "127.0.0.1"
+  DB_PORT: "3306"
+  DB_DATABASE: "v2board"
+  DB_USERNAME: "root"
+  DB_PASSWORD: "change-me"
+  CACHE_DRIVER: "redis"
+  QUEUE_CONNECTION: "redis"
+  SESSION_DRIVER: "redis"
+  REDIS_HOST: "127.0.0.1"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: "null"
+
+x-v2board-service: &v2board-service
+  image: ghcr.io/smile-qwq/v2board:master
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  working_dir: /www
+  environment: *v2board-env
+
 services:
-  v2board:
-    # build: 
-    #   context: .
-    image: ghcr.io/smile-qwq/v2board:master
-    network_mode: host
-    volumes:
-      - ./:/www/
-      # - ./.env:/www/.env
-    environment:
-      - docker=true # 用于给安装脚本判断是否为docker环境
-    restart: always
-    ## ports:
-    ##   - 7002:7002
+  app:
+    <<: *v2board-service
+    command: ["sh", ".docker/bin/run-app.sh"]
+    ports:
+      - "7002:7002"
+
+  queue:
+    <<: *v2board-service
+    command: ["sh", ".docker/bin/run-queue.sh"]
+
+  scheduler:
+    <<: *v2board-service
+    command: ["sh", ".docker/bin/run-scheduler.sh"]

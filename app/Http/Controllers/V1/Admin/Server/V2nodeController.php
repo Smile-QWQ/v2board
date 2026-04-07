@@ -73,6 +73,32 @@ class V2nodeController extends Controller
             }
             $params['network_settings'] = $ns;
         }
+        if (isset($params['tls_settings']['anti_steal_reality_enabled'])) {
+            $params['tls_settings']['anti_steal_reality_enabled'] = filter_var(
+                $params['tls_settings']['anti_steal_reality_enabled'],
+                FILTER_VALIDATE_BOOLEAN
+            );
+        }
+        $antiStealRealityEnabled = isset($params['tls_settings']['anti_steal_reality_enabled'])
+            && $params['tls_settings']['anti_steal_reality_enabled'] === true;
+        if ($antiStealRealityEnabled) {
+            if ($params['protocol'] !== 'vless') {
+                abort(500, '防偷跑 REALITY 仅支持 VLESS 协议');
+            }
+            if ((int)$params['tls'] !== 2) {
+                abort(500, '防偷跑 REALITY 仅支持 REALITY 安全模式');
+            }
+            if ($params['network'] !== 'tcp') {
+                abort(500, '防偷跑 REALITY 仅支持 TCP 传输');
+            }
+            $serverName = trim($params['tls_settings']['server_name'] ?? '');
+            if ($serverName === '') {
+                abort(500, '开启防偷跑 REALITY 时必须填写 Server Name(SNI)');
+            }
+            if (!isset($params['tls_settings']['server_port']) || trim((string)$params['tls_settings']['server_port']) === '') {
+                $params['tls_settings']['server_port'] = '443';
+            }
+        }
         if ($params['network'] != 'tcp' && isset($params['encryption']) && $params['encryption'] != 'mlkem768x25519plus') {
             $params['flow'] = null;
         }

@@ -16,7 +16,10 @@ return [
     |
     */
 
-    'default' => 'mysql',
+    'default' => env(
+        'LOG_CHANNEL',
+        filter_var((string) env('docker', false), FILTER_VALIDATE_BOOLEAN) ? 'stderr' : 'mysql'
+    ),
 
     /*
     |--------------------------------------------------------------------------

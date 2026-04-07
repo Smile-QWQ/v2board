@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class V2boardUpdate extends Command
 {
@@ -19,17 +20,7 @@ class V2boardUpdate extends Command
      *
      * @var string
      */
-    protected $description = 'v2board 更新';
-
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
+    protected $description = '更新 v2board';
 
     /**
      * Execute the console command.
@@ -40,24 +31,31 @@ class V2boardUpdate extends Command
     {
         \Artisan::call('config:cache');
         DB::connection()->getPdo();
-        $file = \File::get(base_path() . '/database/update.sql');
+
+        $file = File::get(base_path('database/update.sql'));
         if (!$file) {
             abort(500, '数据库文件不存在');
         }
-        $sql = str_replace("\n", "", $file);
-        $sql = preg_split("/;/", $sql);
-        if (!is_array($sql)) {
+
+        $sql = str_replace("\n", '', $file);
+        $statements = preg_split('/;/', $sql);
+        if (!is_array($statements)) {
             abort(500, '数据库文件格式有误');
         }
-        $this->info('正在导入数据库请稍等...');
-        foreach ($sql as $item) {
-            if (!$item) continue;
+
+        $this->info('正在导入数据库，请稍等...');
+        foreach ($statements as $statement) {
+            if (!$statement) {
+                continue;
+            }
+
             try {
-                DB::select(DB::raw($item));
-            } catch (\Exception $e) {
+                DB::select(DB::raw($statement));
+            } catch (\Throwable $exception) {
             }
         }
+
         \Artisan::call('horizon:terminate');
-        $this->info('更新完毕，队列服务已重启，你无需进行任何操作。');
+        $this->info('更新完成，请确认 Horizon 进程已经重新加载最新代码。');
     }
 }
