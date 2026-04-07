@@ -2,5 +2,4 @@
 set -eu
 
 cd /www
-exec php webman.php start
-
+exec php -c cli-php.ini webman.php start
