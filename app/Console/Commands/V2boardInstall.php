@@ -36,24 +36,25 @@ class V2boardInstall extends Command
             $this->printBanner();
             $isDocker = filter_var((string) env('docker', false), FILTER_VALIDATE_BOOLEAN);
 
-            $this->ensureEnvFileExists();
+            if ($isDocker) {
+                $this->ensureDockerEnvironment();
+            } else {
+                $this->ensureEnvFileExists();
 
-            $appKey = $this->resolveValue('APP_KEY', '请输入 APP_KEY（留空自动生成）');
-            if ($appKey === '') {
-                $appKey = 'base64:' . base64_encode(Encrypter::generateKey('AES-256-CBC'));
-                if ($isDocker) {
-                    $this->warn('未检测到 APP_KEY，已写入当前容器内的 .env。Docker 部署建议把 APP_KEY 固定写入 docker-compose.yml。');
+                $appKey = $this->resolveValue('APP_KEY', '请输入 APP_KEY（留空自动生成）');
+                if ($appKey === '') {
+                    $appKey = 'base64:' . base64_encode(Encrypter::generateKey('AES-256-CBC'));
                 }
-            }
 
-            $this->saveToEnv([
-                'APP_KEY' => $appKey,
-                'DB_HOST' => $this->resolveValue('DB_HOST', '请输入数据库地址', 'localhost'),
-                'DB_PORT' => $this->resolveValue('DB_PORT', '请输入数据库端口', '3306'),
-                'DB_DATABASE' => $this->resolveRequiredValue('DB_DATABASE', '请输入数据库名称'),
-                'DB_USERNAME' => $this->resolveRequiredValue('DB_USERNAME', '请输入数据库用户名'),
-                'DB_PASSWORD' => $this->resolveValue('DB_PASSWORD', '请输入数据库密码', null, true),
-            ]);
+                $this->saveToEnv([
+                    'APP_KEY' => $appKey,
+                    'DB_HOST' => $this->resolveValue('DB_HOST', '请输入数据库地址', 'localhost'),
+                    'DB_PORT' => $this->resolveValue('DB_PORT', '请输入数据库端口', '3306'),
+                    'DB_DATABASE' => $this->resolveRequiredValue('DB_DATABASE', '请输入数据库名称'),
+                    'DB_USERNAME' => $this->resolveRequiredValue('DB_USERNAME', '请输入数据库用户名'),
+                    'DB_PASSWORD' => $this->resolveValue('DB_PASSWORD', '请输入数据库密码', null, true),
+                ]);
+            }
 
             \Artisan::call('config:clear');
             \Artisan::call('config:cache');
@@ -112,6 +113,23 @@ class V2boardInstall extends Command
 
         if (!copy(base_path('.env.example'), base_path('.env'))) {
             abort(500, '复制环境文件失败，请检查目录权限');
+        }
+    }
+
+    private function ensureDockerEnvironment(): void
+    {
+        $required = ['APP_KEY', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME'];
+        $missing = [];
+
+        foreach ($required as $key) {
+            $value = env($key);
+            if ($value === null || $value === '') {
+                $missing[] = $key;
+            }
+        }
+
+        if ($missing !== []) {
+            abort(500, 'Docker 部署请先在 docker-compose.yml 中设置环境变量：' . implode(', ', $missing));
         }
     }
 

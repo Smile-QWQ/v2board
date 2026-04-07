@@ -1,5 +1,6 @@
 x-v2board-env: &v2board-env
   docker: "true"
+  APP_NAME: "V2Board"
   APP_ENV: "production"
   APP_DEBUG: "false"
   APP_URL: "https://example.com"
@@ -9,9 +10,15 @@ x-v2board-env: &v2board-env
   APP_HTTP_PORT: "7002"
   MAX_REQUEST: "6600"
   APP_FILE_WATCH: "false"
+  V2BOARD_PERSIST_PATH: "/data"
+  V2BOARD_FRONTEND_THEME: "default"
+  V2BOARD_SECURE_PATH: ""
+  V2BOARD_SUBSCRIBE_PATH: ""
+  V2BOARD_SERVER_API_URL: ""
+  V2BOARD_SERVER_TOKEN: ""
   SCHEDULE_INTERVAL: "60"
   DB_CONNECTION: "mysql"
-  DB_HOST: "127.0.0.1"
+  DB_HOST: "mysql"
   DB_PORT: "3306"
   DB_DATABASE: "v2board"
   DB_USERNAME: "root"
@@ -19,9 +26,9 @@ x-v2board-env: &v2board-env
   CACHE_DRIVER: "redis"
   QUEUE_CONNECTION: "redis"
   SESSION_DRIVER: "redis"
-  REDIS_HOST: "127.0.0.1"
+  REDIS_HOST: "redis"
   REDIS_PORT: "6379"
-  REDIS_PASSWORD: "null"
+  REDIS_PASSWORD: ""
 
 x-v2board-service: &v2board-service
   image: ghcr.io/smile-qwq/v2board:master
@@ -31,6 +38,8 @@ x-v2board-service: &v2board-service
   restart: unless-stopped
   working_dir: /www
   environment: *v2board-env
+  volumes:
+    - v2board-data:/data
 
 services:
   app:
@@ -46,3 +55,6 @@ services:
   scheduler:
     <<: *v2board-service
     command: ["sh", ".docker/bin/run-scheduler.sh"]
+
+volumes:
+  v2board-data:

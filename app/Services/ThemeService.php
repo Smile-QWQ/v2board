@@ -30,6 +30,7 @@ class ThemeService
 
         $data = var_export($data, 1);
         try {
+            File::ensureDirectoryExists(base_path() . '/config/theme/');
             if (!File::put(base_path() . "/config/theme/{$this->theme}.php", "<?php\n return $data ;")) {
                 abort(500, "{$this->theme}初始化失败");
             }
@@ -38,10 +39,8 @@ class ThemeService
         }
 
         try {
+            config(["theme.{$this->theme}" => include base_path() . "/config/theme/{$this->theme}.php"]);
             Artisan::call('config:cache');
-            while (true) {
-                if (config("theme.{$this->theme}")) break;
-            }
         } catch (\Exception $e) {
             abort(500, "{$this->theme}初始化失败");
         }

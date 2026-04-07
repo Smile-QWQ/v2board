@@ -19,7 +19,8 @@ FROM php:8.2-cli-alpine
 
 COPY --from=php_extension_installer /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions pcntl redis fileinfo pdo_mysql inotify \
+RUN apk add --no-cache su-exec \
+    && install-php-extensions pcntl redis fileinfo pdo_mysql inotify \
     && addgroup -S -g 1000 www \
     && adduser -S -G www -u 1000 www
 
@@ -31,11 +32,18 @@ RUN mkdir -p /www/storage/app/public \
     /www/storage/framework/sessions \
     /www/storage/framework/views \
     /www/storage/logs \
+    /www/storage/workerman \
     /www/bootstrap/cache \
+    /data/config/theme \
+    /data/storage/app/public \
+    /data/custom/rules \
+    /data/custom/admin \
+    /data/custom/public \
+    /data/custom/theme \
     && ln -sfn /www/storage/app/public /www/public/storage \
+    && chown -R www:www /www /data \
     && chmod +x /www/.docker/bin/*.sh
 
-USER www
 EXPOSE 7002
 
 ENTRYPOINT ["sh", ".docker/bin/docker-entrypoint.sh"]

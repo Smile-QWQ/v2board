@@ -24,6 +24,7 @@
 - 外置 MySQL / Redis
 - compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
+- 持久化 `/data` 卷保存面板配置与主题配置
 - 日志直接输出到 stdout/stderr
 
 ## 快速开始
@@ -37,6 +38,9 @@ docker compose pull
 docker compose up -d app queue scheduler
 docker compose exec app php artisan v2board:install
 ```
+
+> 首次部署会自动初始化 `config/v2board.php` 和当前主题配置，无需手工补文件。
+> Docker 方案请先把 `APP_KEY` 和数据库连接信息写进 compose 环境变量。
 
 ### 更新
 
@@ -67,6 +71,24 @@ docker compose logs -f scheduler
 - `master` 分支 push 会发布镜像到 GHCR
 - 默认使用仓库根目录 `Dockerfile` 构建镜像
 - 详细发布逻辑见 `.github/workflows/docker-publish.yml`
+
+## 旧站迁移提醒
+
+如果你是从旧环境迁移到当前 Docker 方案，除了数据库外，至少还要把旧站的以下文件迁入 `/data` 卷：
+
+- `config/v2board.php`
+- `config/theme/<当前主题>.php`
+- 并保持原来的 `APP_KEY` / `APP_NAME`
+
+如果你还做过自定义订阅模板或前端资源覆盖，再额外迁这些文件：
+
+- `resources/rules/custom.*`
+- `public/assets/admin/custom.css`
+- `public/theme/<theme>/assets/custom.css`
+- `public/theme/<theme>/assets/custom.js`
+- `public/favicon.ico`
+
+详细迁移路径见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
 ## Sponsors
 

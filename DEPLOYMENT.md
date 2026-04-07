@@ -10,6 +10,7 @@
 - 外置 MySQL / Redis
 - compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
+- `/data` 卷持久化运行期文件配置
 - 日志直接输出到 stdout/stderr
 
 ---
@@ -22,6 +23,17 @@
                             -> scheduler 容器(schedule:run)
 
 MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接信息
+
+容器会把以下运行期文件放进 `/data` 卷持久化：
+
+- `/data/config/v2board.php`
+- `/data/config/theme/*.php`
+- `/data/storage/app/public`
+- `/data/custom/rules/custom.*`
+- `/data/custom/admin/custom.css`
+- `/data/custom/theme/<theme>/assets/custom.css`
+- `/data/custom/theme/<theme>/assets/custom.js`
+- `/data/custom/public/favicon.ico`
 ```
 
 ---
@@ -29,6 +41,8 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 ## 环境变量
 
 所有运行参数都通过 `docker-compose.yml` 中的 `environment:` 注入。
+
+> 如果 MySQL / Redis 也是 Docker 容器，请填写容器服务名和容器内部端口，不要填写宿主机映射端口。
 
 重点变量：
 
@@ -69,6 +83,15 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 
 - `SCHEDULE_INTERVAL`
 
+### V2Board 初始化 / 持久化相关
+
+- `V2BOARD_PERSIST_PATH`
+- `V2BOARD_FRONTEND_THEME`
+- `V2BOARD_SECURE_PATH`
+- `V2BOARD_SUBSCRIBE_PATH`
+- `V2BOARD_SERVER_API_URL`
+- `V2BOARD_SERVER_TOKEN`
+
 推荐值示例：
 
 ```yaml
@@ -82,9 +105,15 @@ APP_HTTP_HOST: "0.0.0.0"
 APP_HTTP_PORT: "7002"
 MAX_REQUEST: "6600"
 APP_FILE_WATCH: "false"
+V2BOARD_PERSIST_PATH: "/data"
+V2BOARD_FRONTEND_THEME: "default"
+V2BOARD_SECURE_PATH: ""
+V2BOARD_SUBSCRIBE_PATH: ""
+V2BOARD_SERVER_API_URL: ""
+V2BOARD_SERVER_TOKEN: ""
 
 DB_CONNECTION: "mysql"
-DB_HOST: "你的 MySQL 地址"
+DB_HOST: "mysql"
 DB_PORT: "3306"
 DB_DATABASE: "v2board"
 DB_USERNAME: "你的用户名"
@@ -93,9 +122,9 @@ DB_PASSWORD: "你的密码"
 CACHE_DRIVER: "redis"
 QUEUE_CONNECTION: "redis"
 SESSION_DRIVER: "redis"
-REDIS_HOST: "你的 Redis 地址"
+REDIS_HOST: "redis"
 REDIS_PORT: "6379"
-REDIS_PASSWORD: "你的 Redis 密码"
+REDIS_PASSWORD: "你的 Redis 密码（没有就留空）"
 ```
 
 生成 `APP_KEY`：
@@ -128,6 +157,14 @@ docker compose up -d app queue scheduler
 docker compose exec app php artisan v2board:install
 ```
 
+首次启动时容器会自动：
+
+- 生成缺失的 `config/v2board.php`
+- 初始化当前主题的 `config/theme/<theme>.php`
+- 把这些文件保存在 `/data` 卷内
+
+> Docker 方案下请先在 compose 里写好 `APP_KEY`、`DB_HOST`、`DB_PORT`、`DB_DATABASE`、`DB_USERNAME`，不要指望安装命令把它们持久化进容器内 `.env`。
+
 安装命令会：
 
 - 优先读取 compose 注入的环境变量
@@ -145,6 +182,42 @@ docker compose exec app php artisan v2board:install
 - Redis 正常
 - `queue` 容器正常运行
 - `scheduler` 容器正常运行
+
+---
+
+## 旧站迁移
+
+> 旧站迁移不是只迁数据库。至少还要同步旧站的面板配置文件和主题配置文件。
+
+### 必迁文件
+
+- 旧站 `config/v2board.php` -> 新容器 `/data/config/v2board.php`
+- 旧站 `config/theme/<当前主题>.php` -> 新容器 `/data/config/theme/<当前主题>.php`
+- 旧站使用中的 `APP_KEY` 与 `APP_NAME` 继续保持一致
+
+### 按需迁移的自定义覆盖文件
+
+- 旧站 `resources/rules/custom.*` -> 新容器 `/data/custom/rules/`
+- 旧站 `public/assets/admin/custom.css` -> 新容器 `/data/custom/admin/custom.css`
+- 旧站 `public/theme/<theme>/assets/custom.css` -> 新容器 `/data/custom/theme/<theme>/assets/custom.css`
+- 旧站 `public/theme/<theme>/assets/custom.js` -> 新容器 `/data/custom/theme/<theme>/assets/custom.js`
+- 旧站 `public/favicon.ico` -> 新容器 `/data/custom/public/favicon.ico`
+
+### 推荐切换顺序
+
+1. 备份旧数据库
+2. 停掉旧站的 web / queue / scheduler
+3. `docker compose up -d app queue scheduler`
+4. 把旧文件复制到新容器的 `/data/...` 路径
+5. 执行 `docker compose exec app php artisan v2board:update`
+6. 重启 `queue / scheduler`
+
+### 复制示例
+
+```bash
+docker cp ./config/v2board.php <app容器名>:/data/config/v2board.php
+docker cp ./config/theme/default.php <app容器名>:/data/config/theme/default.php
+```
 
 ---
 
