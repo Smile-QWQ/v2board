@@ -20,11 +20,12 @@
 
 当前仓库内置的是一套面向生产环境的 Docker 部署方案：
 
-- 外置 Nginx
+- 外置 Nginx 只做整站反代
 - 外置 MySQL / Redis
-- compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
-- 使用项目目录 `./data` 持久化面板配置与主题配置
+- `app` 容器内部自带 `nginx + php-fpm`，直接对外提供完整站点
+- 使用项目目录 `./data` 持久化面板配置、主题配置和自定义覆盖
+- 更新镜像后不需要再让宿主机同步 `public/` 静态资源
 - 日志直接输出到 stdout/stderr
 
 ## 快速开始
@@ -39,8 +40,8 @@ docker compose up -d app queue scheduler
 docker compose exec app php artisan v2board:install
 ```
 
+> 外置 Nginx 只需要把整站反代到 `127.0.0.1:7002`。
 > 首次部署会自动初始化 `config/v2board.php` 和当前主题配置，无需手工补文件。
-> Docker 方案请先把 `APP_KEY` 和数据库连接信息写进 compose 环境变量。
 
 ### 更新
 
@@ -54,6 +55,7 @@ docker compose up -d queue scheduler
 ```
 
 > 更新前请先备份数据库。
+> 当前仓库保持上游固定版本号机制不变；如果浏览器仍命中旧 bundle，强制刷新一次即可。
 
 ### 查看日志
 
@@ -88,7 +90,7 @@ docker compose logs -f scheduler
 - `public/theme/<theme>/assets/custom.js`
 - `public/favicon.ico`
 
-详细迁移路径见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+详细迁移路径、外置 Nginx 示例和 1Panel 说明见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
 ## Sponsors
 

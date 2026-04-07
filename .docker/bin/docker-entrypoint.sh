@@ -56,6 +56,10 @@ ensure_optional_symlink() {
   ln -s "$target" "$link"
 }
 
+is_app_command() {
+  [ "${1:-}" = "sh" ] && [ "${2:-}" = ".docker/bin/run-app.sh" ]
+}
+
 ensure_dir "$PERSIST_CONFIG_DIR"
 ensure_dir "$PERSIST_THEME_DIR"
 ensure_dir "$PERSIST_STORAGE_PUBLIC_DIR"
@@ -70,6 +74,13 @@ ensure_dir /www/storage/framework/views
 ensure_dir /www/storage/logs
 ensure_dir /www/storage/workerman
 ensure_dir /www/bootstrap/cache
+ensure_dir /run/nginx
+ensure_dir /tmp/nginx/http.d
+ensure_dir /tmp/nginx/client_temp
+ensure_dir /tmp/nginx/proxy_temp
+ensure_dir /tmp/nginx/fastcgi_temp
+ensure_dir /tmp/nginx/uwsgi_temp
+ensure_dir /tmp/nginx/scgi_temp
 
 if [ ! -f "${PERSIST_CONFIG_DIR}/v2board.php" ]; then
   printf '%s\n' '<?php' '' 'return [];' > "${PERSIST_CONFIG_DIR}/v2board.php"
@@ -93,7 +104,7 @@ for custom_rule in \
   custom.surfboard.conf
 do
   ensure_optional_symlink "${PERSIST_CUSTOM_RULES_DIR}/${custom_rule}" "/www/resources/rules/${custom_rule}"
- done
+done
 
 for theme_dir in /www/public/theme/*; do
   if [ ! -d "$theme_dir" ]; then
@@ -106,8 +117,12 @@ for theme_dir in /www/public/theme/*; do
   ensure_optional_symlink "${PERSIST_CUSTOM_THEME_DIR}/${theme_name}/assets/custom.js" "${theme_dir}/assets/custom.js"
 done
 
-chown -R www:www "$PERSIST_ROOT" /www/storage /www/bootstrap/cache
+chown -R www:www "$PERSIST_ROOT" /www/storage /www/bootstrap/cache /run/nginx /tmp/nginx
 
 su-exec www php artisan v2board:docker-bootstrap --no-interaction
+
+if is_app_command "${1:-}" "${2:-}"; then
+  exec "$@"
+fi
 
 exec su-exec www "$@"

@@ -6,11 +6,12 @@
 
 设计目标：
 
-- 外置 Nginx
+- 外置 Nginx 只做整站反代
 - 外置 MySQL / Redis
 - compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
-- 使用项目目录 `./data` 持久化运行期文件配置
+- `app` 容器内部自带 `nginx + php-fpm`，直接提供完整站点
+- 使用项目目录 `./data` 持久化运行期文件配置与自定义覆盖
 - 日志直接输出到 stdout/stderr
 
 ---
@@ -18,9 +19,9 @@
 ## 架构说明
 
 ```text
-外置 Nginx -> 宿主机 7002 -> app 容器(webman / adapterman)
-                            -> queue 容器(Horizon)
-                            -> scheduler 容器(schedule:run)
+外置 Nginx -> 127.0.0.1:7002 -> app 容器(nginx + php-fpm)
+                              -> queue 容器(Horizon)
+                              -> scheduler 容器(schedule:run)
 
 MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接信息
 
@@ -36,6 +37,12 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 - `/data/custom/public/favicon.ico`
 ```
 
+这套官方 Docker 路径里：
+
+- 主静态资源由 `app` 容器内部 nginx 提供
+- 外置 Nginx 不需要再读取宿主机 `public/` 目录
+- 更新镜像后不需要再单独同步宿主机静态资源
+
 ---
 
 ## 环境变量
@@ -48,6 +55,7 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 
 ### 应用相关
 
+- `APP_NAME`
 - `APP_ENV`
 - `APP_DEBUG`
 - `APP_URL`
@@ -58,8 +66,6 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 
 - `APP_HTTP_HOST`
 - `APP_HTTP_PORT`
-- `MAX_REQUEST`
-- `APP_FILE_WATCH`
 
 ### 数据库相关
 
@@ -95,6 +101,7 @@ MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接
 推荐值示例：
 
 ```yaml
+APP_NAME: "V2Board"
 APP_ENV: "production"
 APP_DEBUG: "false"
 APP_URL: "https://your-domain.com"
@@ -103,14 +110,13 @@ LOG_CHANNEL: "stderr"
 
 APP_HTTP_HOST: "0.0.0.0"
 APP_HTTP_PORT: "7002"
-MAX_REQUEST: "6600"
-APP_FILE_WATCH: "false"
 V2BOARD_PERSIST_PATH: "/data"
 V2BOARD_FRONTEND_THEME: "default"
 V2BOARD_SECURE_PATH: ""
 V2BOARD_SUBSCRIBE_PATH: ""
 V2BOARD_SERVER_API_URL: ""
 V2BOARD_SERVER_TOKEN: ""
+SCHEDULE_INTERVAL: "60"
 
 DB_CONNECTION: "mysql"
 DB_HOST: "mysql"
@@ -151,7 +157,32 @@ docker compose build
 docker compose up -d app queue scheduler
 ```
 
-### 3) 执行安装
+### 3) 配置外置 Nginx
+
+外置 Nginx 只需要整站反代到 `127.0.0.1:7002`，不需要再把站点根目录指向宿主机的 `/opt/v2board/public`。
+
+示例：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:7002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300;
+        proxy_send_timeout 300;
+        proxy_connect_timeout 60;
+    }
+}
+```
+
+### 4) 执行安装
 
 ```bash
 docker compose exec app php artisan v2board:install
@@ -174,9 +205,11 @@ docker compose exec app php artisan v2board:install
 
 > 首次安装前，`queue` / `scheduler` 可能因为数据库尚未初始化而短暂重启，这是正常现象。
 
-### 4) 验证
+### 5) 验证
 
 - Web 正常访问
+- `/theme/default/assets/umi.js` 返回 200
+- `/assets/admin/umi.js` 返回 200
 - 后台可登录
 - MySQL 正常
 - Redis 正常
@@ -232,6 +265,13 @@ cp ./config/v2board.php ./data/config/v2board.php
 cp ./config/theme/default.php ./data/config/theme/default.php
 ```
 
+### 迁移后验证
+
+- 后台路径正常
+- 节点 token 正常
+- anti-steal REALITY 开关正常显示
+- 不需要再同步宿主机 `public/` 目录
+
 ---
 
 ## 后续更新
@@ -267,6 +307,7 @@ docker compose up -d queue scheduler
 ```
 
 > Horizon 是常驻进程，更新后必须重新加载最新代码。
+> 当前仓库保持上游固定版本号机制不变；如果浏览器仍命中旧 bundle，强制刷新一次即可。
 
 ---
 
@@ -300,31 +341,29 @@ docker compose logs -f scheduler
 
 说明：
 
-- `app` 的 HTTP 运行日志直接输出到 stdout/stderr
+- `app` 的 nginx / php-fpm 日志直接输出到 stdout/stderr
 - `queue` 的 Horizon 日志直接输出到 stdout/stderr
 - `scheduler` 每次执行 `schedule:run` 都会打印执行时间
 
 ---
 
-## 外置 Nginx 反代示例
+## 1Panel / 外置 Nginx 说明
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
+当前官方 Docker 架构里，`app` 容器内部已经自带完整 Web 服务，因此：
 
-    location / {
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_pass http://127.0.0.1:7002;
-    }
-}
-```
+- 可以直接把 1Panel 站点配置成普通反向代理站点
+- 也可以用手写 Nginx 配置整站反代到 `127.0.0.1:7002`
+- 不再需要站点根目录指向宿主机 `public/`
+- 不再需要 `try_files ... @upstream` 这种“宿主机静态优先、动态再转发”的混合写法
+
+如果你此前按旧混合模式配置过：
+
+- `/assets/admin/*` 404
+- `/theme/default/assets/*` 404
+- 后台 anti-steal REALITY 开关不显示
+- 强制刷新后才暴露旧 bundle 问题
+
+通常都是因为宿主机静态资源和容器内代码版本不一致。当前官方 Docker 方案已经不再依赖这条链路。
 
 ---
 
@@ -360,6 +399,15 @@ docker compose logs -f scheduler
 1. 是否执行了 `php artisan v2board:update`
 2. `queue` 是否已经重启
 3. 是否需要回滚数据库
+4. 浏览器是否仍在使用旧缓存（尝试强制刷新）
+
+### 浏览器里看不到最新后台开关
+
+如果像 anti-steal REALITY 这类后台前端改动已经在代码里存在，但浏览器界面仍没显示：
+
+1. 先确认已经完成镜像更新与容器重启
+2. 再对后台页面执行一次强制刷新
+3. 确认现在的外置 Nginx 是整站反代到 `127.0.0.1:7002`，而不是宿主机静态资源与容器动态混用
 
 ### 日志在哪里看
 

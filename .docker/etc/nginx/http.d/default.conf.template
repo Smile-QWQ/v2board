@@ -1,0 +1,39 @@
+server {
+    listen __APP_HTTP_HOST__:__APP_HTTP_PORT__ default_server;
+    server_name _;
+
+    root /www/public;
+    index index.php index.html;
+
+    access_log /dev/stdout;
+    error_log /dev/stderr notice;
+
+    client_max_body_size 50m;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico {
+        try_files $uri =404;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~* \.(?:css|js|json|map|jpg|jpeg|gif|png|svg|ico|webp|avif|woff|woff2|ttf|otf|eot)$ {
+        try_files $uri =404;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include /etc/nginx/fastcgi_params;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_pass 127.0.0.1:9000;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
