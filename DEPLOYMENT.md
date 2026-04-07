@@ -10,7 +10,7 @@
 - 外置 MySQL / Redis
 - compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
-- `/data` 卷持久化运行期文件配置
+- 使用项目目录 `./data` 持久化运行期文件配置
 - 日志直接输出到 stdout/stderr
 
 ---
@@ -24,7 +24,7 @@
 
 MySQL / Redis 均为外部已有服务，通过 compose environment 注入连接信息
 
-容器会把以下运行期文件放进 `/data` 卷持久化：
+容器内 `/data` 会映射到项目目录 `./data`，以下运行期文件会持久化在宿主机：
 
 - `/data/config/v2board.php`
 - `/data/config/theme/*.php`
@@ -161,7 +161,7 @@ docker compose exec app php artisan v2board:install
 
 - 生成缺失的 `config/v2board.php`
 - 初始化当前主题的 `config/theme/<theme>.php`
-- 把这些文件保存在 `/data` 卷内
+- 把这些文件保存在宿主机的 `./data` 目录内
 
 > Docker 方案下请先在 compose 里写好 `APP_KEY`、`DB_HOST`、`DB_PORT`、`DB_DATABASE`、`DB_USERNAME`，不要指望安装命令把它们持久化进容器内 `.env`。
 
@@ -191,32 +191,45 @@ docker compose exec app php artisan v2board:install
 
 ### 必迁文件
 
-- 旧站 `config/v2board.php` -> 新容器 `/data/config/v2board.php`
-- 旧站 `config/theme/<当前主题>.php` -> 新容器 `/data/config/theme/<当前主题>.php`
+- 旧站 `config/v2board.php` -> 新宿主机 `./data/config/v2board.php`
+- 旧站 `config/theme/<当前主题>.php` -> 新宿主机 `./data/config/theme/<当前主题>.php`
 - 旧站使用中的 `APP_KEY` 与 `APP_NAME` 继续保持一致
 
 ### 按需迁移的自定义覆盖文件
 
-- 旧站 `resources/rules/custom.*` -> 新容器 `/data/custom/rules/`
-- 旧站 `public/assets/admin/custom.css` -> 新容器 `/data/custom/admin/custom.css`
-- 旧站 `public/theme/<theme>/assets/custom.css` -> 新容器 `/data/custom/theme/<theme>/assets/custom.css`
-- 旧站 `public/theme/<theme>/assets/custom.js` -> 新容器 `/data/custom/theme/<theme>/assets/custom.js`
-- 旧站 `public/favicon.ico` -> 新容器 `/data/custom/public/favicon.ico`
+- 旧站 `resources/rules/custom.*` -> 新宿主机 `./data/custom/rules/`
+- 旧站 `public/assets/admin/custom.css` -> 新宿主机 `./data/custom/admin/custom.css`
+- 旧站 `public/theme/<theme>/assets/custom.css` -> 新宿主机 `./data/custom/theme/<theme>/assets/custom.css`
+- 旧站 `public/theme/<theme>/assets/custom.js` -> 新宿主机 `./data/custom/theme/<theme>/assets/custom.js`
+- 旧站 `public/favicon.ico` -> 新宿主机 `./data/custom/public/favicon.ico`
 
 ### 推荐切换顺序
 
 1. 备份旧数据库
 2. 停掉旧站的 web / queue / scheduler
 3. `docker compose up -d app queue scheduler`
-4. 把旧文件复制到新容器的 `/data/...` 路径
+4. 把旧文件复制到新项目目录 `./data/...` 路径
 5. 执行 `docker compose exec app php artisan v2board:update`
 6. 重启 `queue / scheduler`
+
+### 宿主机目录结构
+
+项目目录下会生成并使用这些路径：
+
+- `./data/config/v2board.php`
+- `./data/config/theme/*.php`
+- `./data/storage/app/public`
+- `./data/custom/rules/custom.*`
+- `./data/custom/admin/custom.css`
+- `./data/custom/theme/<theme>/assets/custom.css`
+- `./data/custom/theme/<theme>/assets/custom.js`
+- `./data/custom/public/favicon.ico`
 
 ### 复制示例
 
 ```bash
-docker cp ./config/v2board.php <app容器名>:/data/config/v2board.php
-docker cp ./config/theme/default.php <app容器名>:/data/config/theme/default.php
+cp ./config/v2board.php ./data/config/v2board.php
+cp ./config/theme/default.php ./data/config/theme/default.php
 ```
 
 ---

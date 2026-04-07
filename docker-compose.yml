@@ -39,7 +39,7 @@ x-v2board-service: &v2board-service
   working_dir: /www
   environment: *v2board-env
   volumes:
-    - v2board-data:/data
+    - ./data:/data
 
 services:
   app:
@@ -55,6 +55,3 @@ services:
   scheduler:
     <<: *v2board-service
     command: ["sh", ".docker/bin/run-scheduler.sh"]
-
-volumes:
-  v2board-data:

@@ -24,7 +24,7 @@
 - 外置 MySQL / Redis
 - compose 注入环境变量
 - `app` / `queue` / `scheduler` 三服务拆分
-- 持久化 `/data` 卷保存面板配置与主题配置
+- 使用项目目录 `./data` 持久化面板配置与主题配置
 - 日志直接输出到 stdout/stderr
 
 ## 快速开始
@@ -74,7 +74,7 @@ docker compose logs -f scheduler
 
 ## 旧站迁移提醒
 
-如果你是从旧环境迁移到当前 Docker 方案，除了数据库外，至少还要把旧站的以下文件迁入 `/data` 卷：
+如果你是从旧环境迁移到当前 Docker 方案，除了数据库外，至少还要把旧站的以下文件迁入项目目录 `./data`：
 
 - `config/v2board.php`
 - `config/theme/<当前主题>.php`
