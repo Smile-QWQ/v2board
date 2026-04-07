@@ -36,6 +36,9 @@ if ($workerCount <= 0) {
 }
 
 $enableFileWatch = filter_var((string) env('APP_FILE_WATCH', $defaultFileWatch), FILTER_VALIDATE_BOOLEAN);
+$workermanStoragePath = __DIR__ . '/storage/workerman';
+Worker::$logFile = __DIR__ . '/storage/logs/workerman.log';
+Worker::$pidFile = $workermanStoragePath . '/webman.pid';
 
 $httpWorker = new Worker(sprintf('http://%s:%d', $listenHost, $listenPort));
 $httpWorker->count = $workerCount;
@@ -130,3 +133,4 @@ function checkFilesChange($inotifyFd, array &$monitorFiles): void
 }
 
 Worker::runAll();
+

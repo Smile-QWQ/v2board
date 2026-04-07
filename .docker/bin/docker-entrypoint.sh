@@ -9,6 +9,7 @@ mkdir -p \
   /www/storage/framework/sessions \
   /www/storage/framework/views \
   /www/storage/logs \
+  /www/storage/workerman \
   /www/bootstrap/cache
 
 if [ ! -L /www/public/storage ]; then
@@ -16,3 +17,4 @@ if [ ! -L /www/public/storage ]; then
 fi
 
 exec "$@"
+
