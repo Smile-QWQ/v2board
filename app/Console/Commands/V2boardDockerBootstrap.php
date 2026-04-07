@@ -19,11 +19,13 @@ class V2boardDockerBootstrap extends Command
         try {
             $this->ensureThemeConfigDirectory();
 
-            $v2boardConfig = $this->loadV2boardConfig();
-            if (empty($v2boardConfig)) {
-                $v2boardConfig = $this->buildDefaultV2boardConfig();
+            $existingConfig = $this->loadV2boardConfig();
+            $defaultConfig = $this->buildDefaultV2boardConfig();
+            $v2boardConfig = $this->mergeV2boardConfig($existingConfig, $defaultConfig);
+
+            if ($existingConfig !== $v2boardConfig) {
                 $this->writePhpConfig(base_path('config/v2board.php'), $v2boardConfig);
-                $this->info('已生成默认 config/v2board.php');
+                $this->info(File::exists(base_path('config/v2board.php')) ? '已更新 config/v2board.php 默认项' : '已生成默认 config/v2board.php');
             }
 
             config(['v2board' => $v2boardConfig]);
@@ -34,6 +36,10 @@ class V2boardDockerBootstrap extends Command
                 $themeService = new ThemeService($theme);
                 $themeService->init();
                 $this->info("已初始化主题配置 config/theme/{$theme}.php");
+            }
+
+            if (File::exists($themeConfigPath)) {
+                config(["theme.{$theme}" => include $themeConfigPath]);
             }
 
             Artisan::call('config:clear');
@@ -103,6 +109,38 @@ class V2boardDockerBootstrap extends Command
             'currency' => env('V2BOARD_CURRENCY', 'CNY'),
             'currency_symbol' => env('V2BOARD_CURRENCY_SYMBOL', '¥'),
         ];
+    }
+
+    private function mergeV2boardConfig(array $existingConfig, array $defaultConfig): array
+    {
+        $merged = $existingConfig;
+        $mustFallbackWhenEmpty = [
+            'app_name',
+            'app_url',
+            'frontend_theme',
+            'frontend_theme_sidebar',
+            'frontend_theme_header',
+            'frontend_theme_color',
+            'secure_path',
+            'server_api_url',
+            'server_token',
+            'email_template',
+            'currency',
+            'currency_symbol',
+        ];
+
+        foreach ($defaultConfig as $key => $value) {
+            if (!array_key_exists($key, $merged)) {
+                $merged[$key] = $value;
+                continue;
+            }
+
+            if (in_array($key, $mustFallbackWhenEmpty, true) && ($merged[$key] === null || $merged[$key] === '')) {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
     }
 
     private function resolveThemeName(array $config): string
